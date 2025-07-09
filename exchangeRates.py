@@ -68,6 +68,7 @@ def readDataFrame(configKeys: list):
     dfDateList = dfDate.values.tolist()
     dfAmountList = [float(x.replace(".", "").replace(',', '.')) for x in dfAmount.values.tolist()]
     dfAmountList = [abs(x) for x in dfAmountList]
+
     return(dfDateList, dfAmountList, validateKeys(df, configKeys[7:], startRow))
 
 def getRate(startDate, endDate):
@@ -88,11 +89,12 @@ def getRate(startDate, endDate):
                 endDate = datetime.datetime.strptime(endDate, formatYMD).date()
                 changeDate = False
             # exchangeDate = datetime.date(2025, 6, 27)
-            eurRates = client.get_exchange_rates(startDate, endDate, ["EUR"]) or client.get_exchange_rates(endDate, startDate, ["EUR"])
-            rate = eurRates[0].date
+            foreignRates = client.get_exchange_rates(startDate, endDate, ["EUR", "USD"]) or client.get_exchange_rates(endDate, startDate, ["EUR", "USD"])
+            rate = foreignRates[0].date
             # print(rate)
-            # print(eurRates[1].rates[1].rate)
-            return(eurRates)
+            # print(foreignRates[1].rates[1].rate)
+            # print(foreignRates)
+            return(foreignRates)
         except IndexError:
             print("Rate not available, weekend or holiday")
             continue
@@ -102,20 +104,21 @@ def getNearestDate(dateList, date) -> datetime.date:
     # print(nearestDate)
     return(nearestDate)
 
-def convertAndGetLists(dateList, amountList, otherLists: list):
-    eurRates = getRate(dateList[0], dateList[len(dateList)-1])
+def convertAndGetLists(dateList: list, amountList: list, otherLists: list[list]):
+    currencyIndexes = {"EUR": 0, "USD": 1}
+    foreignRates = getRate(dateList[0], dateList[len(dateList)-1])
     indexCounter = 0
     dataLength = len(dateList)
     emptyColumnList = [None] * dataLength
-    eurRateDateList = []
+    foreignRateDateList = []
     dateListNew = []
     hufAmounts = []
-    for x in range(len(eurRates)):
-        eurRateDate = str(eurRates[x].date).replace("-", ".")
-        eurRateDate = datetime.datetime.strptime(eurRateDate, f"%Y.%m.%d").date()
-        if(not eurRateDate in eurRateDateList):
-            eurRateDateList.append(eurRateDate)
-            # print(eurRateDate)
+    for x in range(len(foreignRates)):
+        foreignRateDate = str(foreignRates[x].date).replace("-", ".")
+        foreignRateDate = datetime.datetime.strptime(foreignRateDate, f"%Y.%m.%d").date()
+        if(not foreignRateDate in foreignRateDateList):
+            foreignRateDateList.append(foreignRateDate)
+            # print(foreignRateDate)
     for date in dateList:
         if(changeDate):
             date = date.split(".")
@@ -123,27 +126,31 @@ def convertAndGetLists(dateList, amountList, otherLists: list):
             date = ".".join(date)
             dateListNew.append(date)
         date = datetime.datetime.strptime(date, f"%Y.%m.%d").date()
-        if(date in eurRateDateList):
-            amountHuf = round(eurRates[eurRateDateList.index(date)].rates[0].rate * amountList[indexCounter], 0)
-            hufAmounts.append(amountHuf)
-            # elif(not date in eurRateDateList):
-            #     print(indexCounter)
-            #     amountHuf = round(eurRates[x-1].rates[0].rate * amountList[indexCounter], 0)
-            #     hufAmounts.append(amountHuf)
-            #     break
-        else:
-            amountHuf = round(eurRates[eurRateDateList.index(getNearestDate(eurRateDateList, date))].rates[0].rate * amountList[indexCounter], 0)
-            hufAmounts.append(amountHuf)
-            # print(date)
-            # print(getNearestDate(eurRateDateList, date))
+        if(not otherLists[2][indexCounter] == "HUF"):
+            if(date in foreignRateDateList):
+                amountHuf = round(foreignRates[foreignRateDateList.index(date)].rates[currencyIndexes[str(otherLists[2][indexCounter])]].rate * amountList[indexCounter], 0)
+                hufAmounts.append(amountHuf)
+                # elif(not date in foreignRateDateList):
+                #     print(indexCounter)
+                #     amountHuf = round(foreignRates[x-1].rates[0].rate * amountList[indexCounter], 0)
+                #     hufAmounts.append(amountHuf)
+                #     break
+            else:
+                amountHuf = round(foreignRates[foreignRateDateList.index(getNearestDate(foreignRateDateList, date))].rates[currencyIndexes[str(otherLists[2][indexCounter])]].rate * amountList[indexCounter], 0)
+                hufAmounts.append(amountHuf)
+                # print(date)
+                # print(getNearestDate(foreignRateDateList, date))
         # print(date)
         # print(datetime.datetime.strptime("1", f"%d").date())
+        else:
+            hufAmounts.append(amountList[indexCounter])
         indexCounter += 1
+        continue
     print(len(dateList), len(emptyColumnList), len(hufAmounts), len(amountList))
     return(dateListNew, emptyColumnList, hufAmounts, amountList, otherLists)
 
 def createExcel(dateList, emptyColumnList, hufAmounts, amountList, otherLists):
-    dfHuf = pd.DataFrame({"Dátum": dateList, "Megnevezés": otherLists[1] or emptyColumnList, "Bizonylatjel": otherLists[0] or emptyColumnList, "Összeg": hufAmounts, "Tartozik": emptyColumnList, "Kovetel": emptyColumnList, "KTGHELY": emptyColumnList, "Tartozik megnevezés": emptyColumnList, "Követel megnevezés": emptyColumnList, "Deviza összeg": amountList, "Deviza kód": "EUR"})
+    dfHuf = pd.DataFrame({"Dátum": dateList, "Megnevezés": otherLists[1] or emptyColumnList, "Bizonylatjel": otherLists[0] or emptyColumnList, "Összeg": hufAmounts, "Tartozik": emptyColumnList, "Kovetel": emptyColumnList, "KTGHELY": emptyColumnList, "Tartozik megnevezés": emptyColumnList, "Követel megnevezés": emptyColumnList, "Deviza összeg": amountList, "Deviza kód": otherLists[2]})
     finishedExcelPath = os.path.join(os.path.dirname(__file__), "Excels", os.path.basename(csvPath)[:-3] + "xlsx")
     dfHuf.to_excel(finishedExcelPath, index = False)
 
