@@ -1,13 +1,10 @@
 from mnb import Mnb
 import os
-from tkinter import *
-from tkinter import filedialog
 import pandas as pd
 import datetime
-from configFiles import newBankConfig, getKeys, returnConfigsList, validateKeys, editBankConfig
-# ADD DIFFFERENT CURRENCIES LATER  
+from configFiles import validateKeys
+
 changeDate = ""
-csvPath = ""
 # print(configFilePath)
 
 def convertValues(values):
@@ -23,38 +20,11 @@ def convertValues(values):
 
     return(newValues)
 
-def openCSV(buttonInput):
-    global csvPath
-    previousPath = csvPath
-    csvPath = filedialog.askopenfilename(filetypes=(("CSV Files", "*.csv"),))
-    if(not csvPath == ""):
-        buttonInput.config(text=csvPath)
-        return(csvPath)
-    else:
-        csvPath = previousPath
-        return(previousPath)
-
-def addNewBank():
-    openAddBankWindows()
-
-def editBank(bankToEdit):
-    if(bankToEdit in returnConfigsList()):
-        openEditBankWindow(bankToEdit)
-
-def ok(choosenConfig, window):
-    choosenBank = choosenConfig
-    if((not choosenBank == "Bank") and (not csvPath == "")):
-        try:
-            createExcel(*convertAndGetLists(*readDataFrame(getKeys(choosenBank))))
-        except Exception as e:
-            print(e)
-        # window.destroy()
-
-def readDataFrame(configKeys: list):
+def readDataFrame(csvPath: os.path, configKeys: list) -> tuple[list[datetime.date], list[float], list[list]]:
     configKeys = convertValues(configKeys)
     try:
         df = pd.read_csv(csvPath, on_bad_lines='skip', na_filter=False, sep=configKeys[0], skiprows=configKeys[1], header=configKeys[2], encoding=configKeys[3])
-    except Exception:
+    except Exception as e:
         print("One of the parameters is invalid or wrong!")
 
     # print(f"DataFrame:\n{df.shape}")
@@ -71,7 +41,7 @@ def readDataFrame(configKeys: list):
 
     return(dfDateList, dfAmountList, validateKeys(df, configKeys[7:], startRow))
 
-def getRate(startDate, endDate):
+def getRate(startDate: datetime.date, endDate: datetime.date) -> list:
     # API FORMAT
     # [Day(date=datetime.date(2025, 6, 20), rates=[Rate(currency='EUR', rate=402.74)])
     global changeDate
@@ -99,12 +69,12 @@ def getRate(startDate, endDate):
             print("Rate not available, weekend or holiday")
             continue
 
-def getNearestDate(dateList, date) -> datetime.date:
+def getNearestDate(dateList: list[datetime.date], date: datetime.date) -> datetime.date:
     nearestDate = min(dateList, key=lambda x: (x>date, abs(x - date)))
     # print(nearestDate)
     return(nearestDate)
 
-def convertAndGetLists(dateList: list, amountList: list, otherLists: list[list]):
+def convertAndGetLists(dateList: list[datetime.date], amountList: list[float], otherLists: list[list]) -> tuple[list[datetime.date], list[None], list[float], list[float], list[list]]:
     currencyIndexes = {"EUR": 0, "USD": 1}
     foreignRates = getRate(dateList[0], dateList[len(dateList)-1])
     indexCounter = 0
@@ -149,70 +119,9 @@ def convertAndGetLists(dateList: list, amountList: list, otherLists: list[list])
     print(len(dateList), len(emptyColumnList), len(hufAmounts), len(amountList))
     return(dateListNew, emptyColumnList, hufAmounts, amountList, otherLists)
 
-def createExcel(dateList, emptyColumnList, hufAmounts, amountList, otherLists):
+def createExcel(csvPath: os.path, dateList: list[datetime.date], emptyColumnList: list[None], hufAmounts: list[float], amountList: list[float], otherLists: list[list]):
     dfHuf = pd.DataFrame({"Dátum": dateList, "Megnevezés": otherLists[1] or emptyColumnList, "Bizonylatjel": otherLists[0] or emptyColumnList, "Összeg": hufAmounts, "Tartozik": emptyColumnList, "Kovetel": emptyColumnList, "KTGHELY": emptyColumnList, "Tartozik megnevezés": emptyColumnList, "Követel megnevezés": emptyColumnList, "Deviza összeg": amountList, "Deviza kód": otherLists[2]})
-    finishedExcelPath = os.path.join(os.path.dirname(__file__), "Excels", os.path.basename(csvPath)[:-3] + "xlsx")
-    dfHuf.to_excel(finishedExcelPath, index = False)
-
-def startProgram():
-    bankConfigs = returnConfigsList()
-    window = Tk()
-    choosenConfig = StringVar(window)
-    choosenConfig.set("Bank")
-    window.geometry("400x120")
-    window.title("Bank Konvertáló")
-    buttonInput = Button(text="Input CSV", command=lambda: openCSV(buttonInput))
-    buttonInput.pack()
-    dropDownList = OptionMenu(window, choosenConfig, *bankConfigs or ["Bank"])
-    dropDownList.pack()
-    functionFrame = Frame(window)
-    functionFrame.pack()
-    buttonAddBank = Button(functionFrame, text="Add New Bank", command=addNewBank)
-    buttonAddBank.pack(side=LEFT)
-    editButton = Button(functionFrame, text="Edit Bank", command=lambda: editBank(choosenConfig.get()))
-    editButton.pack(side=LEFT)
-    buttonOK = Button(text="OK", command=lambda: ok(choosenConfig.get(), window))
-    buttonOK.pack()
-    window.mainloop()
-
-def openAddBankWindows():
-    addWindow = Tk()
-    addWindow.title("New Bank")
-    addWindow.geometry("300x300")
-    Label(addWindow, text="Bank Name").grid(row=0)
-    bankName = Entry(addWindow)
-    bankName.grid(row=0, column=1)
-    Label(addWindow, text="Separator").grid(row=1)
-    separator = Entry(addWindow)
-    separator.grid(row=1, column=1)
-    Label(addWindow, text="Skips_Rows").grid(row=2)
-    skipRows = Entry(addWindow)
-    skipRows.grid(row=2, column=1)
-    Label(addWindow, text="Header").grid(row=3)
-    header = Entry(addWindow)
-    header.grid(row=3, column=1)
-    Label(addWindow, text="Encoding").grid(row=4)
-    encoding = Entry(addWindow)
-    encoding.grid(row=4, column=1)
-    Label(addWindow, text="Start_Row").grid(row=5)
-    startRow = Entry(addWindow)
-    startRow.grid(row=5, column=1)
-    Label(addWindow, text="Date_Column").grid(row=6)
-    dateColumn = Entry(addWindow)
-    dateColumn.grid(row=6, column=1)
-    Label(addWindow, text="Amount_Column").grid(row=7)
-    amountColumn = Entry(addWindow)
-    amountColumn.grid(row=7, column=1)
-    Label(addWindow, text="Receipt_Column").grid(row=8)
-    receiptColumn = Entry(addWindow)
-    receiptColumn.grid(row=8, column=1)
-    addButton = Button(addWindow, text="Add", command=lambda: newBankConfig(bankName.get(), separator.get(), skipRows.get(), header.get(), encoding.get(), startRow.get(), dateColumn.get(), amountColumn.get(), receiptColumn.get()))
-    addButton.grid(row=9, column=1)
-    addWindow.mainloop()
-
-def openEditBankWindow(bankToEdit):
-    editWindow = Tk()
-    editWindow.geometry("300x300")
-    editWindow.title(f"Edit {bankToEdit}")
-
-startProgram()
+    finishedExcelPath = os.path.join(os.path.dirname(__file__), "../", "Excels")
+    if(not os.path.isdir(finishedExcelPath)):
+        os.mkdir(finishedExcelPath)
+    dfHuf.to_excel(os.path.join(finishedExcelPath, os.path.basename(csvPath)[:-3] + "xlsx"), index = False)
