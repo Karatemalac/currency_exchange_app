@@ -45,20 +45,31 @@ def openCSV(buttonInput: Button):
         csvPath = previousPath
         return(previousPath)
 
-def addNewBank():
-    openAddBankWindows()
+def addNewBank(choosenConfig, dropDownList):
+    openAddBankWindows(choosenConfig, dropDownList)
 
-def editBank(bankToEdit: str, bankConfigs: list):
-    if(bankToEdit in bankConfigs):
-        openEditBankWindow(bankToEdit)
+def editBank(choosenConfig: str, bankConfigs: list, dropDownList):
+    if(choosenConfig.get() in bankConfigs):
+        openEditBankWindow(choosenConfig, dropDownList)
 
-def ok(choosenConfig, window):
+def update(choosenConfig, masterWindow, dropDownList):
+    # Update the OptionMenu in the main window
+    new_banks = returnConfigsList()
+    menu = dropDownList["menu"]
+    menu.delete(0, "end")
+    for bank in new_banks:
+        menu.add_command(label=bank, command=lambda value=bank: choosenConfig.set(value))
+    choosenConfig.set(new_banks[-1] if new_banks else "Bank")
+    masterWindow.destroy()
+
+def ok(choosenConfig: StringVar, window: Tk, feedBackLabel: Label):
     choosenBank = choosenConfig
     if((not choosenBank == "Bank") and (not csvPath == "")):
         try:
             createExcel(csvPath, *convertAndGetLists(*readDataFrame(csvPath, getKeys(choosenBank))))
+            feedBackLabel.config(fg="#008000", text="Success")
         except Exception as e:
-            print(e)
+            feedBackLabel.config(fg="#FF0000", text="An Error has occured")
         # window.destroy()
 
 def startProgram():
@@ -66,7 +77,7 @@ def startProgram():
     window = Tk()
     choosenConfig = StringVar(window)
     choosenConfig.set("Bank")
-    window.geometry("400x120")
+    window.geometry("400x140")
     window.title("Bank Konvertáló")
     buttonInput = Button(text="Input CSV", command=lambda: openCSV(buttonInput))
     buttonInput.pack()
@@ -74,35 +85,39 @@ def startProgram():
     dropDownList.pack()
     functionFrame = Frame(window)
     functionFrame.pack()
-    buttonAddBank = Button(functionFrame, text="Add New Bank", command=lambda: addNewBank())
+    buttonAddBank = Button(functionFrame, text="Add New Bank", command=lambda: addNewBank(choosenConfig, dropDownList))
     buttonAddBank.pack(side=LEFT)
-    buttonEditBank = Button(functionFrame, text="Edit Bank", command=lambda: editBank(choosenConfig.get(), bankConfigs))
+    buttonEditBank = Button(functionFrame, text="Edit Bank", command=lambda: editBank(choosenConfig, returnConfigsList(), dropDownList))
     buttonEditBank.pack(side=LEFT)
-    buttonOK = Button(text="OK", command=lambda: ok(choosenConfig.get(), window))
+    buttonOK = Button(text="OK", command=lambda: ok(choosenConfig.get(), window, feedBackLabel))
     buttonOK.pack()
+    feedBackLabel = Label(master=window, text="")
+    feedBackLabel.pack()
     window.mainloop()
 
-def openAddBankWindows():
+def openAddBankWindows(choosenConfig, dropDownList):
     addWindow = Tk()
     addWindow.title("New Bank")
     addWindow.geometry("300x300")
     returnedValues = createFields(addWindow)
     rowCounter = returnedValues[0]
-    addButton = Button(addWindow, text="Add", command=lambda: newBankConfig(*[entry.get() for entry in returnedValues[1]]))
+    addButton = Button(addWindow, text="Add", command=lambda:[newBankConfig(*[entry.get() for entry in returnedValues[1]]), update(choosenConfig, addWindow, dropDownList)])
     addButton.grid(row=rowCounter, column=1)
     addWindow.mainloop()
 
-def openEditBankWindow(bankToEdit: str):
+def openEditBankWindow(choosenConfig: str, dropDownList):
+    bankToEdit = choosenConfig.get()
     editWindow = Tk()
     editWindow.title(f"Edit {bankToEdit}")
     editWindow.geometry("300x300")
     returnedValues = createFields(editWindow)
     populateFields(bankToEdit, returnedValues[1])
     rowCounter = returnedValues[0]
-    editButton = Button(text="Save", command=lambda: editBankConfig(bankToEdit, [newValue.get() for newValue in returnedValues[1]]), master=editWindow)
+    editButton = Button(text="Save Changes", command=lambda: [editBankConfig(bankToEdit, [newValue.get() for newValue in returnedValues[1]]), update(choosenConfig, editWindow, dropDownList)], master=editWindow)
     editButton.grid(row=rowCounter, column=0)
-    buttonRemoveBank = Button(text="Remove Bank", command=lambda: removeBankConfig(bankToEdit), master=editWindow)
+    buttonRemoveBank = Button(text="Remove Bank", command=lambda: [removeBankConfig(bankToEdit), update(choosenConfig, editWindow, dropDownList)], master=editWindow)
     buttonRemoveBank.grid(row=rowCounter, column=1)
     editWindow.mainloop()
 
-startProgram()
+if __name__ == "__main__":
+    startProgram()

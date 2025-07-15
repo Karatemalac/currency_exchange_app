@@ -20,7 +20,6 @@ def returnConfigsList() -> list:
 
 def createConfigFile():
     if(not path.isfile(configFilePath)):
-        # print("Working")
         with open(configFilePath, "w") as configfile:
             pass
 
@@ -75,11 +74,3 @@ def getKeys(choosenBank: str) -> list:
     return(keys)
 
 createConfigFile()
-
-
-# if(not getKeys(returnConfigsList()[1])[1]):
-#     print("WORKING")
-# else:
-#     print("NOT WORKING")
-# editConfig("Test", "separator", "New")
-# newBankConfig("Test", ";", 4, 0, "latin1", 1, 2, 7)

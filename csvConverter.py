@@ -90,15 +90,16 @@ def convertAndGetLists(dateList: list[datetime.date], amountList: list[float], o
             foreignRateDateList.append(foreignRateDate)
             # print(foreignRateDate)
     for date in dateList:
+        currentCurrency = str(otherLists[2][indexCounter])
         if(changeDate):
             date = date.split(".")
             date[0], date[2] = date[2], date[0]
             date = ".".join(date)
             dateListNew.append(date)
         date = datetime.datetime.strptime(date, f"%Y.%m.%d").date()
-        if(not otherLists[2][indexCounter] == "HUF"):
+        if(currentCurrency in currencyIndexes):
             if(date in foreignRateDateList):
-                amountHuf = round(foreignRates[foreignRateDateList.index(date)].rates[currencyIndexes[str(otherLists[2][indexCounter])]].rate * amountList[indexCounter], 0)
+                amountHuf = round(foreignRates[foreignRateDateList.index(date)].rates[currencyIndexes[currentCurrency]].rate * amountList[indexCounter], 0)
                 hufAmounts.append(amountHuf)
                 # elif(not date in foreignRateDateList):
                 #     print(indexCounter)
@@ -106,14 +107,16 @@ def convertAndGetLists(dateList: list[datetime.date], amountList: list[float], o
                 #     hufAmounts.append(amountHuf)
                 #     break
             else:
-                amountHuf = round(foreignRates[foreignRateDateList.index(getNearestDate(foreignRateDateList, date))].rates[currencyIndexes[str(otherLists[2][indexCounter])]].rate * amountList[indexCounter], 0)
+                amountHuf = round(foreignRates[foreignRateDateList.index(getNearestDate(foreignRateDateList, date))].rates[currencyIndexes[currentCurrency]].rate * amountList[indexCounter], 0)
                 hufAmounts.append(amountHuf)
                 # print(date)
                 # print(getNearestDate(foreignRateDateList, date))
         # print(date)
         # print(datetime.datetime.strptime("1", f"%d").date())
-        else:
+        elif(currentCurrency == "HUF"):
             hufAmounts.append(amountList[indexCounter])
+        else:
+            hufAmounts.append("")
         indexCounter += 1
         continue
     print(len(dateList), len(emptyColumnList), len(hufAmounts), len(amountList))
