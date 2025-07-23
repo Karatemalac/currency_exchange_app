@@ -128,3 +128,8 @@ def createExcel(csvPath: os.path, dateList: list[datetime.date], emptyColumnList
     if(not os.path.isdir(finishedExcelPath)):
         os.mkdir(finishedExcelPath)
     dfHuf.to_excel(os.path.join(finishedExcelPath, os.path.basename(csvPath)[:-3] + "xlsx"), index = False)
+
+def addCsvToList(csvPath: os.path, csvFilesList: list):
+    csvFilesList.append(csvPath)
+    return(csvFilesList)
+    

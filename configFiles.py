@@ -67,10 +67,8 @@ def getSectionNames() -> list:
         sectionNames.append(section)
     return(sectionNames)
 
-def getKeys(choosenBank: str) -> list:
-    keys = []
+def getKeyValues(choosenBank: str) -> list:
+    keyValues = []
     for key in config[choosenBank]:
-        keys.append(config[choosenBank][key])
-    return(keys)
-
-createConfigFile()
+        keyValues.append(config[choosenBank][key])
+    return(keyValues)
